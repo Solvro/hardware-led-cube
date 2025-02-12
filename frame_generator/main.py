@@ -14,6 +14,7 @@ class LedCube:
         self.state_parser: StateParser = state_parser
 
         self.states: list[npt.NDArray] = []
+        self.frame: int = 0
 
     def start(self, start_function) -> None:
         self.leds = start_function(self.leds)
@@ -23,8 +24,11 @@ class LedCube:
         update_function(self.leds)
         self.states += [self.leds]
 
+    def update_frame(self, frame: int) -> None:
+        self.frame = frame
+
     def should_stop(self, stop_function) -> bool:
-        return stop_function(self.leds)
+        return stop_function(self.leds, self.frame)
 
     def parse(self) -> str:
         return self.state_parser.parse(self.leds)
@@ -49,12 +53,5 @@ def generate_frames(width, height, depth, state_parser: StateParser, animator: A
         saver.save(results, frame, "sample", "animations")
 
         led_cube.update(animator.update_function)
-
+        led_cube.update_frame(frame)
         frame += 1
-
-
-if __name__ == "__main__":
-    state_parser = PrototypeJsonifier()
-    sample_animator = SampleAnimator()
-    saver = Saver()
-    generate_frames(4, 4, 8, state_parser, sample_animator, saver)

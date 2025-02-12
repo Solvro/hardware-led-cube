@@ -7,5 +7,5 @@ class Saver:
 
         full_path = os.path.join(path, file_name)
 
-        with open(full_path, "+a") as file:
+        with open(full_path, "w") as file:
             file.write(parsed_content)

@@ -18,7 +18,7 @@ class Animator(ABC):
     def update_function(self, leds: npt.NDArray) -> npt.NDArray:
         ...
 
-    def stop_function(self, leds: npt.NDArray) -> bool:
+    def stop_function(self, leds: npt.NDArray, frames) -> bool:
         return False
 
 
@@ -42,5 +42,5 @@ class SampleAnimator(Animator):
 
         return leds
 
-    def stop_function(self, leds) -> bool:
-        return self.current_x_index == leds.shape[0]
+    def stop_function(self, leds, frames) -> bool:
+        return frames == leds.shape[0] - 1
