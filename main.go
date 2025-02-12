@@ -3,10 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
-	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 	"log"
 	"os"
 	"time"
+
+	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 )
 
 const (
@@ -44,6 +45,19 @@ type Cube interface {
 }
 
 type ledCube ws2811.WS2811
+
+type mockCube struct {
+}
+
+func (c *mockCube) Render() error {
+	return nil
+}
+
+func (c *mockCube) SetLeds(f Frame) {
+}
+
+func (c *mockCube) Fini() {
+}
 
 func (c *ledCube) Render() error {
 	return (*ws2811.WS2811)(c).Render()
@@ -83,6 +97,10 @@ func InitLedCube() *ledCube {
 	return (*ledCube)(cube)
 }
 
+func InitMockCube() *mockCube {
+	return &mockCube{}
+}
+
 // returns a function that checks if the channel containing FrameSource errors has anything in it, and closes the program if it does after printing error info
 func errChanChecker(fs FrameSource, ec <-chan error) func() {
 	return func() {
@@ -113,6 +131,7 @@ func main() {
 		panic(err)
 	}
 	fs, ec := NewJSONFileAnimation(file)
+	log.Println(file.Name())
 	checkParsingError := errChanChecker(fs, ec)
 	checkParsingError()
 	tick := time.Tick(time.Second / FRAMERATE)
