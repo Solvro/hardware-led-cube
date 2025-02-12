@@ -4,3 +4,22 @@
 This repository contains code for configuring hardware, developing drivers, and managing services for a 3D LED Cube. It includes a custom service to control LED patterns, animations, and functionality, providing an interface to determine and program how the LED matrix operates.
 ## Project with workflow management
 [Tasks here](https://github.com/orgs/Solvro/projects/28)
+## Usage:
+
+### Building:
+```bash
+go build
+```
+
+### Running:
+```bash
+./hardware-led-cube
+```
+##### Running the mock:
+```bash
+./hardware-led-cube --mock
+```
+##### Help:
+```bash
+./hardware-led-cube --help
+```
