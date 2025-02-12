@@ -124,7 +124,7 @@ func createLeds(width int) [][][]Led {
 	return leds
 }
 
-func render(window *glfw.Window, program uint32, cameraUniform, modelUniform, ledColorUniform int32, leds [][][]Led, sphereVertices []float32) {
+func render(window *glfw.Window, program uint32, cameraUniform, modelUniform, ledColorUniform int32, leds [][][]Led, sphereVertices []float32, ledUpdates chan [][][]Led) {
 	angle := 0.0
 	previousTime := glfw.GetTime()
 
@@ -144,6 +144,12 @@ func render(window *glfw.Window, program uint32, cameraUniform, modelUniform, le
 		gl.UniformMatrix4fv(cameraUniform, 1, false, &camera[0])
 
 		gl.UseProgram(program)
+
+		select {
+		case newLeds := <-ledUpdates:
+			leds = newLeds
+		default:
+		}
 
 		for x := 0; x < cubeWidth; x++ {
 			for y := 0; y < cubeWidth; y++ {
@@ -166,7 +172,7 @@ func render(window *glfw.Window, program uint32, cameraUniform, modelUniform, le
 	}
 }
 
-func main() {
+func Main(ledUpdates chan [][][]Led) {
 	window := initializeGLFW()
 	defer glfw.Terminate()
 
@@ -182,7 +188,7 @@ func main() {
 	ledColorUniform := gl.GetUniformLocation(program, gl.Str("ledColor\x00"))
 	sphereVertices := generateSphereVertices(1.0, 30, 30)
 
-	render(window, program, cameraUniform, modelUniform, ledColorUniform, leds, sphereVertices)
+	render(window, program, cameraUniform, modelUniform, ledColorUniform, leds, sphereVertices, ledUpdates)
 }
 
 func generateSphereVertices(radius float32, latitudeBands int, longitudeBands int) []float32 {

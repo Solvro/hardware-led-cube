@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	mock "hardware-led-cube/mock"
 	"log"
 	"os"
 	"time"
@@ -26,7 +27,7 @@ const (
 
 var (
 	// Command line flags
-	mock = flag.Bool("mock", false, "Render animation in a window")
+	mock_bool = flag.Bool("mock", false, "Render animation in a window")
 )
 
 type FrameSource interface {
@@ -97,7 +98,7 @@ func InitLedCube() *ledCube {
 	return (*ledCube)(cube)
 }
 
-func InitMockCube() *mockCube {
+func InitMockCube() Cube {
 	return &mockCube{}
 }
 
@@ -119,10 +120,13 @@ func main() {
 	flag.Parse()
 	var cube Cube
 	var fs FrameSource
-	if !*mock {
+	ledUpdates := make(chan [][][]mock.Led)
+
+	if !*mock_bool {
 		cube = InitLedCube()
 		defer cube.Fini()
 	} else {
+		go mock.Main(ledUpdates)
 		cube = InitMockCube()
 	}
 
@@ -140,6 +144,28 @@ func main() {
 		f := fs.NextFrame()
 		checkParsingError()
 		cube.SetLeds(f)
+
+		if *mock_bool {
+			bottom, top := f.Normalize()
+			leds := make([][][]mock.Led, WIDTH)
+			for x := 0; x < WIDTH; x++ {
+				leds[x] = make([][]mock.Led, HEIGHT)
+				for y := 0; y < HEIGHT; y++ {
+					leds[x][y] = make([]mock.Led, DEPTH)
+					for z := 0; z < DEPTH; z++ {
+						leds[x][y][z] = mock.Led{
+							X: float32(x),
+							Y: float32(y),
+							Z: float32(z),
+							R: float32(bottom[x*HEIGHT+y]) / 255.0,
+							G: float32(top[x*HEIGHT+y]) / 255.0,
+							B: float32(bottom[x*HEIGHT+y]) / 255.0,
+						}
+					}
+				}
+			}
+			ledUpdates <- leds
+		}
 
 		<-tick
 		err := cube.Render()
