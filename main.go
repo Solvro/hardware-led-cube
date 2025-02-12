@@ -60,7 +60,7 @@ func (c *ledCube) Fini() {
 	(*ws2811.WS2811)(c).Fini()
 }
 
-func initLedCube() *ledCube {
+func InitLedCube() *ledCube {
 	opt := ws2811.DefaultOptions
 	opt.Channels[0].GpioPin = GPIO_PIN_BOTTOM
 	opt.Channels[1].GpioPin = GPIO_PIN_TOP
@@ -97,7 +97,7 @@ func main() {
 	var cube Cube
 	var fs FrameSource
 	if !*mock {
-		cube = initLedCube()
+		cube = InitLedCube()
 		defer cube.Fini()
 	} else {
 		cube = InitMockCube()
