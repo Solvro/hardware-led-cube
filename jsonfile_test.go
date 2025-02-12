@@ -13,9 +13,9 @@ func TestJSONFileDecoding(t *testing.T) {
 	assert.NilError(t, err)
 	fs, ec := NewJSONFileAnimation(file)
 
-	checkErrChanRecover(t, ec)
+	checkErrChanRecover(t, fs, ec)
 	for range fs.frameChan {
-		checkErrChanRecover(t, ec)
+		checkErrChanRecover(t, fs, ec)
 	}
 	// all this does is check if decoding into frames and encoding back works
 	jsonBytes, err := json.Marshal(fs.frames)
@@ -40,8 +40,9 @@ func TestJSONFileDecoding(t *testing.T) {
 // TODO: test the normalization function
 // TODO: more and better test files
 
-func checkErrChanRecover(t *testing.T, ec chan error) {
-	checkErrChan(ec)
+// recovers the panic on errors from ec and fails through t instead
+func checkErrChanRecover(t *testing.T, fs FrameSource, ec chan error) {
+	checkErrChan(fs, ec)
 	defer func() {
 		if r := recover(); r != nil {
 			t.Fatal(recover())

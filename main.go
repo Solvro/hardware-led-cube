@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 	"log"
 	"os"
@@ -82,11 +83,13 @@ func InitLedCube() *ledCube {
 	return (*ledCube)(cube)
 }
 
-func checkErrChan(ec chan error) {
+// checks if the channel containing FrameSource errors has anything in it, and closes the program if it does after printing error info
+func checkErrChan(fs FrameSource, ec chan error) {
 	select {
 	case err := <-ec:
 		if err != nil {
-			panic(err)
+			panic(fmt.Sprintf("An error occurred while parsing frames from FrameSource:\n"+
+				"%v\nError:\n%v", fs, err))
 		}
 	default:
 	}
@@ -108,12 +111,12 @@ func main() {
 		panic(err)
 	}
 	fs, ec := NewJSONFileAnimation(file)
-	checkErrChan(ec)
+	checkErrChan(fs, ec)
 	tick := time.Tick(time.Second / FRAMERATE)
 
 	for {
 		f := fs.NextFrame()
-		checkErrChan(ec)
+		checkErrChan(fs, ec)
 		cube.SetLeds(f)
 
 		<-tick
