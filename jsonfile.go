@@ -22,8 +22,8 @@ func (f frame) Normalize() (bottom [LED_COUNT]uint32, top [LED_COUNT]uint32) {
 	return
 }
 
-func NewJSONFileAnimation(input io.ReadCloser) (jfa *JSONFileAnimation, ec chan error) {
-	ec = make(chan error, 1)
+func NewJSONFileAnimation(input io.ReadCloser) (*JSONFileAnimation, <-chan error) {
+	ec := make(chan error, 1)
 	defer input.Close()
 	dec := json.NewDecoder(input)
 
@@ -38,7 +38,7 @@ func NewJSONFileAnimation(input io.ReadCloser) (jfa *JSONFileAnimation, ec chan 
 		return nil, ec
 	}
 
-	jfa = &JSONFileAnimation{frames: make([]frame, 0), frameChan: make(chan frame, 32)}
+	jfa := &JSONFileAnimation{frames: make([]frame, 0), frameChan: make(chan frame, 32)}
 	go func(fc chan<- frame, frames *[]frame) {
 		defer close(fc)
 		for dec.More() {

@@ -84,7 +84,7 @@ func InitLedCube() *ledCube {
 }
 
 // returns a function that checks if the channel containing FrameSource errors has anything in it, and closes the program if it does after printing error info
-func errChanChecker(fs FrameSource, ec chan error) func() {
+func errChanChecker(fs FrameSource, ec <-chan error) func() {
 	return func() {
 		select {
 		case err := <-ec:

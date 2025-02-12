@@ -42,7 +42,7 @@ func TestJSONFileDecoding(t *testing.T) {
 // TODO: more and better test files
 
 // recovers the panic on errors from ec and fails through t instead
-func errChanCheckerRecover(t *testing.T, fs FrameSource, ec chan error) func() {
+func errChanCheckerRecover(t *testing.T, fs FrameSource, ec <-chan error) func() {
 	checkError := errChanChecker(fs, ec)
 	return func() {
 		checkError()
