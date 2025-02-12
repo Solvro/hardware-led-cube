@@ -1,91 +1,81 @@
-// Copyright 2014 The go-gl Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// Renders a textured spinning cube using GLFW 3 and OpenGL 4.1 core forward-compatible profile.
 package main
 
 import (
 	"fmt"
-	"go/build"
-	"image"
-	"image/draw"
 	_ "image/png"
-	"log"
-	"os"
+	"math"
+	"math/rand"
 	"runtime"
-	"strings"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
 	"github.com/go-gl/mathgl/mgl32"
 )
 
-const windowWidth = 800
-const windowHeight = 600
+const (
+	windowWidth  = 800
+	windowHeight = 600
+	ledSize      = 0.125
+	cubeWidth    = 4
+)
+
+var (
+	cameraPos   = mgl32.Vec3{1.5, 1.5, 8}
+	cameraFront = mgl32.Vec3{0, 0, -1}
+	cameraRight = mgl32.Vec3{0, 1, 0}
+	cameraUp    = mgl32.Vec3{0, -1, 0}
+	deltaTime   float32
+)
+
+var (
+	yaw         float32 = -90.0
+	pitch       float32 = 0.0
+	lastX       float32 = windowWidth / 2.0
+	lastY       float32 = windowHeight / 2.0
+	firstMouse  bool    = true
+	sensitivity float32 = 0.1
+)
+
+type Led struct {
+	X, Y, Z float32
+	R, G, B float32
+}
 
 func init() {
-	// GLFW event handling must run on the main OS thread
 	runtime.LockOSThread()
 }
 
-func main() {
-	if err := glfw.Init(); err != nil {
-		log.Fatalln("failed to initialize glfw:", err)
-	}
-	defer glfw.Terminate()
-
-	glfw.WindowHint(glfw.Resizable, glfw.False)
-	glfw.WindowHint(glfw.ContextVersionMajor, 4)
-	glfw.WindowHint(glfw.ContextVersionMinor, 1)
-	glfw.WindowHint(glfw.OpenGLProfile, glfw.OpenGLCoreProfile)
-	glfw.WindowHint(glfw.OpenGLForwardCompatible, glfw.True)
-	window, err := glfw.CreateWindow(windowWidth, windowHeight, "Cube", nil, nil)
-	if err != nil {
-		panic(err)
-	}
-	window.MakeContextCurrent()
-
-	// Initialize Glow
+func initializeOpenGL() uint32 {
 	if err := gl.Init(); err != nil {
 		panic(err)
 	}
-
 	version := gl.GoStr(gl.GetString(gl.VERSION))
 	fmt.Println("OpenGL version", version)
-
-	// Configure the vertex and fragment shaders
-	program, err := newProgram(vertexShader, fragmentShader)
+	program, err := newShaderProgram(vertexShader, fragmentShader)
 	if err != nil {
 		panic(err)
 	}
-
 	gl.UseProgram(program)
+	return program
+}
 
-	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.1, 10.0)
+func configureShaders(program uint32) (int32, int32, int32) {
+	projection := mgl32.Perspective(mgl32.DegToRad(45.0), float32(windowWidth)/windowHeight, 0.1, 100.0)
 	projectionUniform := gl.GetUniformLocation(program, gl.Str("projection\x00"))
 	gl.UniformMatrix4fv(projectionUniform, 1, false, &projection[0])
 
-	camera := mgl32.LookAtV(mgl32.Vec3{3, 3, 3}, mgl32.Vec3{0, 0, 0}, mgl32.Vec3{0, 1, 0})
 	cameraUniform := gl.GetUniformLocation(program, gl.Str("camera\x00"))
-	gl.UniformMatrix4fv(cameraUniform, 1, false, &camera[0])
-
-	model := mgl32.Ident4()
 	modelUniform := gl.GetUniformLocation(program, gl.Str("model\x00"))
-	gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
 	textureUniform := gl.GetUniformLocation(program, gl.Str("tex\x00"))
 	gl.Uniform1i(textureUniform, 0)
 
 	gl.BindFragDataLocation(program, 0, gl.Str("outputColor\x00"))
 
-	// Load the texture
-	texture, err := newTexture("square.png")
-	if err != nil {
-		log.Fatalln(err)
-	}
+	return projectionUniform, cameraUniform, modelUniform
+}
 
-	// Configure the vertex data
+func configureVertexData(program uint32) uint32 {
 	var vao uint32
 	gl.GenVertexArrays(1, &vao)
 	gl.BindVertexArray(vao)
@@ -93,7 +83,8 @@ func main() {
 	var vbo uint32
 	gl.GenBuffers(1, &vbo)
 	gl.BindBuffer(gl.ARRAY_BUFFER, vbo)
-	gl.BufferData(gl.ARRAY_BUFFER, len(cubeVertices)*4, gl.Ptr(cubeVertices), gl.STATIC_DRAW)
+	sphereVertices := generateSphereVertices(1.0, 30, 30)
+	gl.BufferData(gl.ARRAY_BUFFER, len(sphereVertices)*4, gl.Ptr(sphereVertices), gl.STATIC_DRAW)
 
 	vertAttrib := uint32(gl.GetAttribLocation(program, gl.Str("vert\x00")))
 	gl.EnableVertexAttribArray(vertAttrib)
@@ -103,240 +94,127 @@ func main() {
 	gl.EnableVertexAttribArray(texCoordAttrib)
 	gl.VertexAttribPointerWithOffset(texCoordAttrib, 2, gl.FLOAT, false, 5*4, 3*4)
 
-	// Configure global settings
+	return vao
+}
+
+func configureGlobalSettings() {
 	gl.Enable(gl.DEPTH_TEST)
 	gl.DepthFunc(gl.LESS)
-	gl.ClearColor(1.0, 1.0, 1.0, 1.0)
+	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
+}
 
+func createLeds(width int) [][][]Led {
+	leds := make([][][]Led, width)
+	for x := 0; x < width; x++ {
+		leds[x] = make([][]Led, width)
+		for y := 0; y < width; y++ {
+			leds[x][y] = make([]Led, width)
+			for z := 0; z < width; z++ {
+				leds[x][y][z] = Led{
+					X: float32(x),
+					Y: float32(y),
+					Z: float32(z),
+					R: rand.Float32(),
+					G: rand.Float32(),
+					B: rand.Float32(),
+				}
+			}
+		}
+	}
+	return leds
+}
+
+func render(window *glfw.Window, program uint32, cameraUniform, modelUniform, ledColorUniform int32, leds [][][]Led, sphereVertices []float32) {
 	angle := 0.0
 	previousTime := glfw.GetTime()
 
 	for !window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		// Update
 		time := glfw.GetTime()
-		elapsed := time - previousTime
+		deltaTime = float32(time - previousTime)
 		previousTime = time
 
-		angle += elapsed
-		model = mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0})
+		angle += float64(deltaTime)
+		model := mgl32.HomogRotate3D(float32(angle), mgl32.Vec3{0, 1, 0})
 
-		// Render
+		processInput(window)
+
+		camera := mgl32.LookAtV(cameraPos, cameraPos.Add(cameraFront), cameraRight)
+		gl.UniformMatrix4fv(cameraUniform, 1, false, &camera[0])
+
 		gl.UseProgram(program)
-		gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
-		gl.BindVertexArray(vao)
+		for x := 0; x < cubeWidth; x++ {
+			for y := 0; y < cubeWidth; y++ {
+				for z := 0; z < cubeWidth; z++ {
+					led := leds[x][y][z]
 
-		gl.ActiveTexture(gl.TEXTURE0)
-		gl.BindTexture(gl.TEXTURE_2D, texture)
+					color := mgl32.Vec3{led.R, led.G, led.B}
+					gl.Uniform3fv(ledColorUniform, 1, &color[0])
 
-		gl.DrawArrays(gl.TRIANGLES, 0, 6*2*3)
+					model = mgl32.Translate3D(led.X, led.Y, led.Z).Mul4(mgl32.Scale3D(ledSize, ledSize, ledSize))
+					gl.UniformMatrix4fv(modelUniform, 1, false, &model[0])
 
-		// Maintenance
+					gl.DrawArrays(gl.TRIANGLES, 0, int32(len(sphereVertices)/5))
+				}
+			}
+		}
+
 		window.SwapBuffers()
 		glfw.PollEvents()
 	}
 }
 
-func newProgram(vertexShaderSource, fragmentShaderSource string) (uint32, error) {
-	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
-	if err != nil {
-		return 0, err
-	}
+func main() {
+	window := initializeGLFW()
+	defer glfw.Terminate()
 
-	fragmentShader, err := compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
-	if err != nil {
-		return 0, err
-	}
+	window.SetCursorPosCallback(mouseCallback)
+	window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
 
-	program := gl.CreateProgram()
+	program := initializeOpenGL()
+	_, cameraUniform, modelUniform := configureShaders(program)
+	configureVertexData(program)
+	configureGlobalSettings()
 
-	gl.AttachShader(program, vertexShader)
-	gl.AttachShader(program, fragmentShader)
-	gl.LinkProgram(program)
+	leds := createLeds(cubeWidth)
+	ledColorUniform := gl.GetUniformLocation(program, gl.Str("ledColor\x00"))
+	sphereVertices := generateSphereVertices(1.0, 30, 30)
 
-	var status int32
-	gl.GetProgramiv(program, gl.LINK_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetProgramiv(program, gl.INFO_LOG_LENGTH, &logLength)
-
-		log := strings.Repeat("\x00", int(logLength+1))
-		gl.GetProgramInfoLog(program, logLength, nil, gl.Str(log))
-
-		return 0, fmt.Errorf("failed to link program: %v", log)
-	}
-
-	gl.DeleteShader(vertexShader)
-	gl.DeleteShader(fragmentShader)
-
-	return program, nil
+	render(window, program, cameraUniform, modelUniform, ledColorUniform, leds, sphereVertices)
 }
 
-func compileShader(source string, shaderType uint32) (uint32, error) {
-	shader := gl.CreateShader(shaderType)
+func generateSphereVertices(radius float32, latitudeBands int, longitudeBands int) []float32 {
+	var vertices []float32
 
-	csources, free := gl.Strs(source)
-	gl.ShaderSource(shader, 1, csources, nil)
-	free()
-	gl.CompileShader(shader)
+	for latNumber := 0; latNumber < latitudeBands; latNumber++ {
+		theta := float32(latNumber) * float32(math.Pi) / float32(latitudeBands)
+		nextTheta := float32(latNumber+1) * float32(math.Pi) / float32(latitudeBands)
+		sinTheta := float32(math.Sin(float64(theta)))
+		cosTheta := float32(math.Cos(float64(theta)))
+		sinNextTheta := float32(math.Sin(float64(nextTheta)))
+		cosNextTheta := float32(math.Cos(float64(nextTheta)))
 
-	var status int32
-	gl.GetShaderiv(shader, gl.COMPILE_STATUS, &status)
-	if status == gl.FALSE {
-		var logLength int32
-		gl.GetShaderiv(shader, gl.INFO_LOG_LENGTH, &logLength)
+		for longNumber := 0; longNumber < longitudeBands; longNumber++ {
+			phi := float32(longNumber) * 2 * float32(math.Pi) / float32(longitudeBands)
+			nextPhi := float32(longNumber+1) * 2 * float32(math.Pi) / float32(longitudeBands)
+			sinPhi := float32(math.Sin(float64(phi)))
+			cosPhi := float32(math.Cos(float64(phi)))
+			sinNextPhi := float32(math.Sin(float64(nextPhi)))
+			cosNextPhi := float32(math.Cos(float64(nextPhi)))
 
-		log := strings.Repeat("\x00", int(logLength+1))
-		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(log))
+			// First triangle
+			vertices = append(vertices, radius*cosPhi*sinTheta, radius*cosTheta, radius*sinPhi*sinTheta, float32(longNumber)/float32(longitudeBands), float32(latNumber)/float32(latitudeBands))
+			vertices = append(vertices, radius*cosNextPhi*sinTheta, radius*cosTheta, radius*sinNextPhi*sinTheta, float32(longNumber+1)/float32(longitudeBands), float32(latNumber)/float32(latitudeBands))
+			vertices = append(vertices, radius*cosPhi*sinNextTheta, radius*cosNextTheta, radius*sinPhi*sinNextTheta, float32(longNumber)/float32(longitudeBands), float32(latNumber+1)/float32(latitudeBands))
 
-		return 0, fmt.Errorf("failed to compile %v: %v", source, log)
+			// Second triangle
+			vertices = append(vertices, radius*cosNextPhi*sinTheta, radius*cosTheta, radius*sinNextPhi*sinTheta, float32(longNumber+1)/float32(longitudeBands), float32(latNumber)/float32(latitudeBands))
+			vertices = append(vertices, radius*cosNextPhi*sinNextTheta, radius*cosNextTheta, radius*sinNextPhi*sinNextTheta, float32(longNumber+1)/float32(longitudeBands), float32(latNumber+1)/float32(latitudeBands))
+			vertices = append(vertices, radius*cosPhi*sinNextTheta, radius*cosNextTheta, radius*sinPhi*sinNextTheta, float32(longNumber)/float32(longitudeBands), float32(latNumber+1)/float32(latitudeBands))
+		}
 	}
 
-	return shader, nil
-}
-
-func newTexture(file string) (uint32, error) {
-	imgFile, err := os.Open(file)
-	if err != nil {
-		return 0, fmt.Errorf("texture %q not found on disk: %v", file, err)
-	}
-	img, _, err := image.Decode(imgFile)
-	if err != nil {
-		return 0, err
-	}
-
-	rgba := image.NewRGBA(img.Bounds())
-	if rgba.Stride != rgba.Rect.Size().X*4 {
-		return 0, fmt.Errorf("unsupported stride")
-	}
-	draw.Draw(rgba, rgba.Bounds(), img, image.Point{0, 0}, draw.Src)
-
-	var texture uint32
-	gl.GenTextures(1, &texture)
-	gl.ActiveTexture(gl.TEXTURE0)
-	gl.BindTexture(gl.TEXTURE_2D, texture)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexImage2D(
-		gl.TEXTURE_2D,
-		0,
-		gl.RGBA,
-		int32(rgba.Rect.Size().X),
-		int32(rgba.Rect.Size().Y),
-		0,
-		gl.RGBA,
-		gl.UNSIGNED_BYTE,
-		gl.Ptr(rgba.Pix))
-
-	return texture, nil
-}
-
-var vertexShader = `
-#version 330
-
-uniform mat4 projection;
-uniform mat4 camera;
-uniform mat4 model;
-
-in vec3 vert;
-in vec2 vertTexCoord;
-
-out vec2 fragTexCoord;
-
-void main() {
-    fragTexCoord = vertTexCoord;
-    gl_Position = projection * camera * model * vec4(vert, 1);
-}
-` + "\x00"
-
-var fragmentShader = `
-#version 330
-
-uniform sampler2D tex;
-
-in vec2 fragTexCoord;
-
-out vec4 outputColor;
-
-void main() {
-    outputColor = texture(tex, fragTexCoord);
-}
-` + "\x00"
-
-var cubeVertices = []float32{
-	//  X, Y, Z, U, V
-	// Bottom
-	-1.0, -1.0, -1.0, 0.0, 0.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	-1.0, -1.0, 1.0, 0.0, 1.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	1.0, -1.0, 1.0, 1.0, 1.0,
-	-1.0, -1.0, 1.0, 0.0, 1.0,
-
-	// Top
-	-1.0, 1.0, -1.0, 0.0, 0.0,
-	-1.0, 1.0, 1.0, 0.0, 1.0,
-	1.0, 1.0, -1.0, 1.0, 0.0,
-	1.0, 1.0, -1.0, 1.0, 0.0,
-	-1.0, 1.0, 1.0, 0.0, 1.0,
-	1.0, 1.0, 1.0, 1.0, 1.0,
-
-	// Front
-	-1.0, -1.0, 1.0, 1.0, 0.0,
-	1.0, -1.0, 1.0, 0.0, 0.0,
-	-1.0, 1.0, 1.0, 1.0, 1.0,
-	1.0, -1.0, 1.0, 0.0, 0.0,
-	1.0, 1.0, 1.0, 0.0, 1.0,
-	-1.0, 1.0, 1.0, 1.0, 1.0,
-
-	// Back
-	-1.0, -1.0, -1.0, 0.0, 0.0,
-	-1.0, 1.0, -1.0, 0.0, 1.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	-1.0, 1.0, -1.0, 0.0, 1.0,
-	1.0, 1.0, -1.0, 1.0, 1.0,
-
-	// Left
-	-1.0, -1.0, 1.0, 0.0, 1.0,
-	-1.0, 1.0, -1.0, 1.0, 0.0,
-	-1.0, -1.0, -1.0, 0.0, 0.0,
-	-1.0, -1.0, 1.0, 0.0, 1.0,
-	-1.0, 1.0, 1.0, 1.0, 1.0,
-	-1.0, 1.0, -1.0, 1.0, 0.0,
-
-	// Right
-	1.0, -1.0, 1.0, 1.0, 1.0,
-	1.0, -1.0, -1.0, 1.0, 0.0,
-	1.0, 1.0, -1.0, 0.0, 0.0,
-	1.0, -1.0, 1.0, 1.0, 1.0,
-	1.0, 1.0, -1.0, 0.0, 0.0,
-	1.0, 1.0, 1.0, 0.0, 1.0,
-}
-
-// Set the working directory to the root of Go package, so that its assets can be accessed.
-func init() {
-	dir, err := importPathToDir("github.com/go-gl/example/gl41core-cube")
-	if err != nil {
-		log.Fatalln("Unable to find Go package in your GOPATH, it's needed to load assets:", err)
-	}
-	err = os.Chdir(dir)
-	if err != nil {
-		log.Panicln("os.Chdir:", err)
-	}
-}
-
-// importPathToDir resolves the absolute path from importPath.
-// There doesn't need to be a valid Go package inside that import path,
-// but the directory must exist.
-func importPathToDir(importPath string) (string, error) {
-	p, err := build.Import(importPath, "", build.FindOnly)
-	if err != nil {
-		return "", err
-	}
-	return p.Dir, nil
+	return vertices
 }
