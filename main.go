@@ -83,15 +83,17 @@ func InitLedCube() *ledCube {
 	return (*ledCube)(cube)
 }
 
-// checks if the channel containing FrameSource errors has anything in it, and closes the program if it does after printing error info
-func checkErrChan(fs FrameSource, ec chan error) {
-	select {
-	case err := <-ec:
-		if err != nil {
-			panic(fmt.Sprintf("An error occurred while parsing frames from FrameSource:\n"+
-				"%v\nError:\n%v", fs, err))
+// returns a function that checks if the channel containing FrameSource errors has anything in it, and closes the program if it does after printing error info
+func errChanChecker(fs FrameSource, ec chan error) func() {
+	return func() {
+		select {
+		case err := <-ec:
+			if err != nil {
+				panic(fmt.Sprintf("An error occurred while parsing frames from FrameSource:\n"+
+					"%v\nError:\n%v", fs, err))
+			}
+		default:
 		}
-	default:
 	}
 }
 
@@ -111,12 +113,13 @@ func main() {
 		panic(err)
 	}
 	fs, ec := NewJSONFileAnimation(file)
-	checkErrChan(fs, ec)
+	checkParsingError := errChanChecker(fs, ec)
+	checkParsingError()
 	tick := time.Tick(time.Second / FRAMERATE)
 
 	for {
 		f := fs.NextFrame()
-		checkErrChan(fs, ec)
+		checkParsingError()
 		cube.SetLeds(f)
 
 		<-tick
