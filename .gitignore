@@ -26,3 +26,6 @@ go.work.sum
 
 # IntelliJ IDEA
 .idea/
+
+# Python artifacts
+**__pycache__/
