@@ -4,7 +4,6 @@ import (
 	_ "image/png"
 	"log"
 	"math"
-	"math/rand"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -40,9 +39,9 @@ func createLeds(width int) [][][]Led {
 					X: float32(x),
 					Y: float32(y),
 					Z: float32(z),
-					R: rand.Float32(),
-					G: rand.Float32(),
-					B: rand.Float32(),
+					R: 0.0,
+					G: 0.0,
+					B: 0.0,
 				}
 			}
 		}

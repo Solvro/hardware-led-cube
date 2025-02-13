@@ -43,23 +43,48 @@ type Cube interface {
 	Render() error
 	SetLeds(f Frame)
 	Fini()
+	Run()
 }
 
 type ledCube ws2811.WS2811
 
 type mockCube struct {
+	leds       [][][]mock.Led
+	ledUpdates chan [][][]mock.Led
 }
 
 func (c *mockCube) Render() error {
+	c.ledUpdates <- c.leds
+
 	return nil
 }
 
 func (c *mockCube) SetLeds(f Frame) {
 	bottom, top := f.Normalize()
-
+	for x := 0; x < DEPTH; x++ {
+		for y := 0; y < HEIGHT; y++ {
+			for z := 0; z < WIDTH; z++ {
+				var color uint32
+				if x < DEPTH/2 {
+					color = bottom[x*HEIGHT*WIDTH+y*WIDTH+z]
+				} else {
+					color = top[(x-DEPTH/2)*HEIGHT*WIDTH+y*WIDTH+z]
+				}
+				led := c.leds[x][y][z]
+				led.R = float32((color >> 16) & 0xFF)
+				led.G = float32((color >> 8) & 0xFF)
+				led.B = float32(color & 0xFF)
+				c.leds[x][y][z] = led
+			}
+		}
+	}
 }
 
 func (c *mockCube) Fini() {
+}
+
+func (c *mockCube) Run() {
+	mock.Setup(c.ledUpdates)
 }
 
 func (c *ledCube) Render() error {
@@ -76,6 +101,10 @@ func (c *ledCube) SetLeds(f Frame) {
 
 func (c *ledCube) Fini() {
 	(*ws2811.WS2811)(c).Fini()
+}
+
+func (c *ledCube) Run() {
+
 }
 
 func InitLedCube() *ledCube {
@@ -101,7 +130,29 @@ func InitLedCube() *ledCube {
 }
 
 func InitMockCube() Cube {
-	return &mockCube{}
+	leds := make([][][]mock.Led, DEPTH)
+	for z := 0; z < DEPTH; z++ {
+		leds[z] = make([][]mock.Led, HEIGHT)
+		for y := 0; y < HEIGHT; y++ {
+			leds[z][y] = make([]mock.Led, WIDTH)
+			for x := 0; x < WIDTH; x++ {
+				leds[z][y][x] = mock.Led{
+					X: float32(x),
+					Y: float32(y),
+					Z: float32(z),
+					R: 1.0,
+					G: 1.0,
+					B: 1.0}
+			}
+		}
+	}
+
+	ledUpdates := make(chan [][][]mock.Led)
+
+	return &mockCube{
+		leds:       leds,
+		ledUpdates: ledUpdates,
+	}
 }
 
 // returns a function that checks if the channel containing FrameSource errors has anything in it, and closes the program if it does after printing error info
@@ -122,7 +173,6 @@ func main() {
 	flag.Parse()
 	var cube Cube
 	var fs FrameSource
-	ledUpdates := make(chan [][][]mock.Led)
 
 	if !*mock_bool {
 		cube = InitLedCube()
@@ -142,47 +192,10 @@ func main() {
 	tick := time.Tick(time.Second / FRAMERATE)
 
 	go func() {
-		leds := make([][][]mock.Led, DEPTH)
-		for z := 0; z < DEPTH; z++ {
-			leds[z] = make([][]mock.Led, HEIGHT)
-			for y := 0; y < HEIGHT; y++ {
-				leds[z][y] = make([]mock.Led, WIDTH)
-				for x := 0; x < WIDTH; x++ {
-					leds[z][y][x] = mock.Led{
-						X: float32(x),
-						Y: float32(y),
-						Z: float32(z),
-						R: 1.0,
-						G: 1.0,
-						B: 1.0}
-				}
-			}
-		}
-
 		for {
 			f := fs.NextFrame()
 			checkParsingError()
 			cube.SetLeds(f)
-
-			bottom, top := f.Normalize()
-			for z := 0; z < DEPTH; z++ {
-				for y := 0; y < HEIGHT; y++ {
-					for x := 0; x < WIDTH; x++ {
-						var color uint32
-						if z < DEPTH/2 {
-							color = bottom[z*HEIGHT*WIDTH+y*WIDTH+x]
-						} else {
-							color = top[(z-DEPTH/2)*HEIGHT*WIDTH+y*WIDTH+x]
-						}
-						led := leds[z][y][x]
-						led.R = float32((color >> 16) & 0xFF)
-						led.G = float32((color >> 8) & 0xFF)
-						led.B = float32(color & 0xFF)
-						leds[z][y][x] = led
-					}
-				}
-			}
-			ledUpdates <- leds
 
 			<-tick
 			log.Println(time.Now())
@@ -193,7 +206,7 @@ func main() {
 	}()
 
 	if *mock_bool {
-		mock.Setup(ledUpdates)
+		cube.Run()
 	} else {
 		select {}
 	}
