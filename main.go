@@ -27,7 +27,7 @@ const (
 
 var (
 	// Command line flags
-	mock_bool = flag.Bool("mock", true, "Render animation in a window")
+	is_mock = flag.Bool("mock", true, "Render animation in a window")
 )
 
 type FrameSource interface {
@@ -174,7 +174,7 @@ func main() {
 	var cube Cube
 	var fs FrameSource
 
-	if !*mock_bool {
+	if !*is_mock {
 		cube = InitLedCube()
 		defer cube.Fini()
 	} else {
@@ -205,7 +205,7 @@ func main() {
 		}
 	}()
 
-	if *mock_bool {
+	if *is_mock {
 		cube.Run()
 	} else {
 		select {}
