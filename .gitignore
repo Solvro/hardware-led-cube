@@ -29,3 +29,9 @@ go.work.sum
 
 # Python artifacts
 **__pycache__/
+
+Makefile
+
+.vscode/launch.json
+
+animation.json
