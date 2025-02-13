@@ -12,22 +12,22 @@ import (
 )
 
 const (
-	WIDTH           = 8
-	HEIGHT          = 8
-	DEPTH           = 8
-	LED_COUNT       = WIDTH * HEIGHT * DEPTH / 2
+	WIDTH           = 4
+	HEIGHT          = 4
+	DEPTH           = 4
+	LED_COUNT_HALF  = WIDTH * HEIGHT * DEPTH / 2
 	BOTTOM          = 0
 	TOP             = 1
 	GPIO_PIN_BOTTOM = 18
 	GPIO_PIN_TOP    = 19
 	BRIGHTNESS      = 64
-	FRAMERATE       = 60
+	FRAMERATE       = 1
 	FREQ            = 800_000
 )
 
 var (
 	// Command line flags
-	mock_bool = flag.Bool("mock", false, "Render animation in a window")
+	mock_bool = flag.Bool("mock", true, "Render animation in a window")
 )
 
 type FrameSource interface {
@@ -36,7 +36,7 @@ type FrameSource interface {
 
 type Frame interface {
 	// Normalize the frame to the format the cube expects
-	Normalize() (bottom [LED_COUNT]uint32, top [LED_COUNT]uint32)
+	Normalize() (bottom [LED_COUNT_HALF]uint32, top [LED_COUNT_HALF]uint32)
 }
 
 type Cube interface {
@@ -55,6 +55,8 @@ func (c *mockCube) Render() error {
 }
 
 func (c *mockCube) SetLeds(f Frame) {
+	bottom, top := f.Normalize()
+
 }
 
 func (c *mockCube) Fini() {
@@ -66,7 +68,7 @@ func (c *ledCube) Render() error {
 
 func (c *ledCube) SetLeds(f Frame) {
 	bottom, top := f.Normalize()
-	for i := range LED_COUNT {
+	for i := range LED_COUNT_HALF {
 		(*ws2811.WS2811)(c).Leds(BOTTOM)[i] = bottom[i]
 		(*ws2811.WS2811)(c).Leds(TOP)[i] = top[i]
 	}
@@ -80,8 +82,8 @@ func InitLedCube() *ledCube {
 	opt := ws2811.DefaultOptions
 	opt.Channels[0].GpioPin = GPIO_PIN_BOTTOM
 	opt.Channels[1].GpioPin = GPIO_PIN_TOP
-	opt.Channels[0].LedCount = LED_COUNT
-	opt.Channels[1].LedCount = LED_COUNT
+	opt.Channels[0].LedCount = LED_COUNT_HALF
+	opt.Channels[1].LedCount = LED_COUNT_HALF
 	opt.Channels[0].Brightness = BRIGHTNESS
 	opt.Channels[1].Brightness = BRIGHTNESS
 	opt.Frequency = FREQ
@@ -126,7 +128,6 @@ func main() {
 		cube = InitLedCube()
 		defer cube.Fini()
 	} else {
-		go mock.Main(ledUpdates)
 		cube = InitMockCube()
 	}
 
@@ -135,42 +136,65 @@ func main() {
 		panic(err)
 	}
 	fs, ec := NewJSONFileAnimation(file)
-	log.Println(file.Name())
+
 	checkParsingError := errChanChecker(fs, ec)
 	checkParsingError()
 	tick := time.Tick(time.Second / FRAMERATE)
 
-	for {
-		f := fs.NextFrame()
-		checkParsingError()
-		cube.SetLeds(f)
+	go func() {
+		leds := make([][][]mock.Led, DEPTH)
+		for z := 0; z < DEPTH; z++ {
+			leds[z] = make([][]mock.Led, HEIGHT)
+			for y := 0; y < HEIGHT; y++ {
+				leds[z][y] = make([]mock.Led, WIDTH)
+				for x := 0; x < WIDTH; x++ {
+					leds[z][y][x] = mock.Led{
+						X: float32(x),
+						Y: float32(y),
+						Z: float32(z),
+						R: 1.0,
+						G: 1.0,
+						B: 1.0}
+				}
+			}
+		}
 
-		if *mock_bool {
+		for {
+			f := fs.NextFrame()
+			checkParsingError()
+			cube.SetLeds(f)
+
 			bottom, top := f.Normalize()
-			leds := make([][][]mock.Led, WIDTH)
-			for x := 0; x < WIDTH; x++ {
-				leds[x] = make([][]mock.Led, HEIGHT)
+			for z := 0; z < DEPTH; z++ {
 				for y := 0; y < HEIGHT; y++ {
-					leds[x][y] = make([]mock.Led, DEPTH)
-					for z := 0; z < DEPTH; z++ {
-						leds[x][y][z] = mock.Led{
-							X: float32(x),
-							Y: float32(y),
-							Z: float32(z),
-							R: float32(bottom[x*HEIGHT+y]) / 255.0,
-							G: float32(top[x*HEIGHT+y]) / 255.0,
-							B: float32(bottom[x*HEIGHT+y]) / 255.0,
+					for x := 0; x < WIDTH; x++ {
+						var color uint32
+						if z < DEPTH/2 {
+							color = bottom[z*HEIGHT*WIDTH+y*WIDTH+x]
+						} else {
+							color = top[(z-DEPTH/2)*HEIGHT*WIDTH+y*WIDTH+x]
 						}
+						led := leds[z][y][x]
+						led.R = float32((color >> 16) & 0xFF)
+						led.G = float32((color >> 8) & 0xFF)
+						led.B = float32(color & 0xFF)
+						leds[z][y][x] = led
 					}
 				}
 			}
 			ledUpdates <- leds
-		}
 
-		<-tick
-		err := cube.Render()
-		if err != nil {
-			log.Println(err)
+			<-tick
+			log.Println(time.Now())
+			if err := cube.Render(); err != nil {
+				log.Println(err)
+			}
 		}
+	}()
+
+	if *mock_bool {
+		mock.Setup(ledUpdates)
+	} else {
+		select {}
 	}
 }

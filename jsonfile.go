@@ -13,9 +13,9 @@ type JSONFileAnimation struct {
 
 type frame [][][]uint32
 
-func (f frame) Normalize() (bottom [LED_COUNT]uint32, top [LED_COUNT]uint32) {
+func (f frame) Normalize() (bottom [LED_COUNT_HALF]uint32, top [LED_COUNT_HALF]uint32) {
 	// TODO: find out what the actual output format needed is, and reimplement accordingly
-	for i := 0; i < LED_COUNT; i++ {
+	for i := 0; i < LED_COUNT_HALF; i++ {
 		bottom[i] = f[i%WIDTH][(i/HEIGHT)%(HEIGHT/2)][i/(WIDTH*HEIGHT/2)]
 		top[i] = f[i%WIDTH][(i/HEIGHT)%(HEIGHT/2)+HEIGHT/2][i/(WIDTH*HEIGHT/2)]
 	}

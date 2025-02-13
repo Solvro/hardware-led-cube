@@ -7,6 +7,15 @@ import (
 	"github.com/go-gl/mathgl/mgl32"
 )
 
+var (
+	yaw         float32 = -90.0
+	pitch       float32 = 0.0
+	lastX       float32 = windowWidth / 2.0
+	lastY       float32 = windowHeight / 2.0
+	firstMouse  bool    = true
+	sensitivity float32 = 0.1
+)
+
 func processInput(window *glfw.Window) {
 	var cameraSpeed float32 = 2.5 * deltaTime
 	if window.GetKey(glfw.KeyW) == glfw.Press {

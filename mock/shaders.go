@@ -4,18 +4,18 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/go-gl/gl/v3.3-core/gl"
+	"github.com/go-gl/gl/v2.1/gl"
 )
 
 func newShaderProgram(vertexShaderSource, fragmentShaderSource string) (uint32, error) {
 	vertexShader, err := compileShader(vertexShaderSource, gl.VERTEX_SHADER)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to compile vertex shader: %v", err)
 	}
 
 	fragmentShader, err := compileShader(fragmentShaderSource, gl.FRAGMENT_SHADER)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to compile fragment shader: %v", err)
 	}
 
 	program := gl.CreateProgram()
@@ -59,7 +59,7 @@ func compileShader(source string, shaderType uint32) (uint32, error) {
 		log := strings.Repeat("\x00", int(logLength+1))
 		gl.GetShaderInfoLog(shader, logLength, nil, gl.Str(log))
 
-		return 0, fmt.Errorf("failed to compile %v: %v", source, log)
+		return 0, fmt.Errorf("failed to compile shader: %v", log)
 	}
 
 	return shader, nil
@@ -73,12 +73,8 @@ uniform mat4 camera;
 uniform mat4 model;
 
 in vec3 vert;
-in vec2 vertTexCoord;
-
-out vec2 fragTexCoord;
 
 void main() {
-    fragTexCoord = vertTexCoord;
     gl_Position = projection * camera * model * vec4(vert, 1);
 }
 ` + "\x00"
@@ -86,12 +82,11 @@ void main() {
 var fragmentShader = `
 #version 330
 
-uniform vec3 ledColor; // Add this line to receive the LED's color
+uniform vec3 ledColor;
 
-in vec2 fragTexCoord;
 out vec4 outputColor;
 
 void main() {
-    outputColor = vec4(ledColor, 1.0); // Use the passed-in LED color
+    outputColor = vec4(ledColor, 1.0);
 }
 ` + "\x00"
