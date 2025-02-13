@@ -31,3 +31,7 @@ go.work.sum
 **__pycache__/
 
 Makefile
+
+.vscode/launch.json
+
+animation.json

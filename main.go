@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	mock "hardware-led-cube/mock"
+	"hardware-led-cube/mock"
 	"log"
 	"os"
 	"time"
