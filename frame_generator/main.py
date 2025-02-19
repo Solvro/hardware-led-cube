@@ -45,12 +45,13 @@ def generate_frames(width, height, depth, state_parser: StateParser, animator: A
         if animator.stop_function is None:
             return True
 
+        print(frame)
         return not led_cube.should_stop(animator.stop_function)
 
     while is_running():
         results: str = led_cube.parse()
 
-        saver.save(results, frame, "sample", "animations")
+        saver.save(results, frame, "sample", "generated_animations")
 
         led_cube.update(animator.update_function)
         led_cube.update_frame(frame)

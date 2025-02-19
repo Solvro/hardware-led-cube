@@ -4,6 +4,8 @@ from frame_generator.parsed_handler import Saver
 from frame_generator.main import generate_frames
 
 if __name__ == "__main__":
+    print("main")
+
     state_parser = PrototypeJsonifier()
     sample_animator = SampleAnimator()
     saver = Saver()

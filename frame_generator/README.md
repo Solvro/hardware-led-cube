@@ -7,7 +7,7 @@ I made this mostly for myself, to generate some cool animations for mock. We wil
 cd to root folder of this repo and
 
 ```sh
-python -m frame_generator.main
+python -m frame_generator
 ```
 
 ## json format

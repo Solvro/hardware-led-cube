@@ -19,12 +19,10 @@ class PrototypeJsonifier(StateParser):
 
     def parse(self, leds: npt.NDArray) -> str:
         color_state = leds.reshape(
-            (leds.shape[0], leds.shape[1], leds.shape[2], 3)).tolist()
+            (leds.shape[0], leds.shape[1], leds.shape[2], 3))
 
-        data: dict = {
-            "id": f"Frame_{len(self.previous_states)}",
-            "state": color_state
-        }
+        int_color_state = [[[rgbToColor(r, g, b) for r, g, b in row]
+                            for row in plane] for plane in color_state]
 
-        json_string: str = json.dumps(data, indent=4)
+        json_string: str = json.dumps(int_color_state, indent=4)
         return json_string
