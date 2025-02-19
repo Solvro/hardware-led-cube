@@ -1,4 +1,4 @@
-package main
+package frames
 
 import (
 	"bytes"
@@ -43,7 +43,7 @@ func TestJSONFileDecoding(t *testing.T) {
 
 // recovers the panic on errors from ec and fails through t instead
 func errChanCheckerRecover(t *testing.T, fs FrameSource, ec <-chan error) func() {
-	checkError := errChanChecker(fs, ec)
+	checkError := ErrChanChecker(fs, ec)
 	return func() {
 		checkError()
 		defer func() {
