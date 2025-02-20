@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"hardware-led-cube/frames"
 	"hardware-led-cube/mock"
@@ -112,7 +113,11 @@ func main() {
 
 		<-tick
 		if err := cube.Render(); err != nil {
-			log.Println(err)
+			if !errors.Is(err, mock.ErrWindowShouldClose) {
+				log.Println(err)
+				continue
+			}
+			break
 		}
 	}
 

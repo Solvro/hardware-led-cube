@@ -1,6 +1,7 @@
 package mock
 
 import (
+	"errors"
 	"hardware-led-cube/frames"
 	_ "image/png"
 	"log"
@@ -40,6 +41,8 @@ type led struct {
 type Cube struct {
 	leds [][][]led
 }
+
+var ErrWindowShouldClose = errors.New("window should close")
 
 func InitCube(width, height, depth int) *Cube {
 	// we only want to lock the os thread if we are mocking
@@ -120,8 +123,9 @@ func (c *Cube) Render() error {
 
 		window.SwapBuffers()
 		glfw.PollEvents()
+		return nil
 	}
-	return nil
+	return ErrWindowShouldClose
 }
 
 func (c *Cube) Fini() {
