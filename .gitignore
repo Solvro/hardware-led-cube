@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+# Package binary
+hardware-led-cube
+
 # Test binary, built with `go test -c`
 *.test
 

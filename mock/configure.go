@@ -2,15 +2,9 @@ package mock
 
 import (
 	"fmt"
-	"runtime"
-
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/mathgl/mgl32"
 )
-
-func init() {
-	runtime.LockOSThread()
-}
 
 func initializeOpenGL() uint32 {
 	if err := gl.Init(); err != nil {
