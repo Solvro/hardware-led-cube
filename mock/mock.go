@@ -1,9 +1,12 @@
 package mock
 
 import (
+	"errors"
+	"hardware-led-cube/frames"
 	_ "image/png"
 	"log"
 	"math"
+	"runtime"
 
 	"github.com/go-gl/gl/v4.1-core/gl"
 	"github.com/go-gl/glfw/v3.3/glfw"
@@ -11,53 +14,84 @@ import (
 )
 
 const (
-	ledSize   = 0.125
-	cubeWidth = 4
+	ledSize = 0.125
 )
 
 var (
-	cameraPos   = mgl32.Vec3{1.5, 1.5, 8}
-	cameraFront = mgl32.Vec3{0, 0, -1}
-	cameraRight = mgl32.Vec3{0, 1, 0}
-	cameraUp    = mgl32.Vec3{0, -1, 0}
-	deltaTime   float32
+	cameraPos       = mgl32.Vec3{1.5, 1.5, 8}
+	cameraFront     = mgl32.Vec3{0, 0, -1}
+	cameraRight     = mgl32.Vec3{0, 1, 0}
+	cameraUp        = mgl32.Vec3{0, -1, 0}
+	previousTime    float64
+	deltaTime       float32
+	window          *glfw.Window
+	program         uint32
+	cameraUniform   int32
+	modelUniform    int32
+	ledColorUniform int32
+	sphereVertices  []float32
+	angle           float64
 )
 
-type Led struct {
+type led struct {
 	X, Y, Z float32
 	R, G, B float32
 }
 
-func createLeds(width int) [][][]Led {
-	leds := make([][][]Led, width)
-	for x := 0; x < width; x++ {
-		leds[x] = make([][]Led, width)
-		for y := 0; y < width; y++ {
-			leds[x][y] = make([]Led, width)
-			for z := 0; z < width; z++ {
-				leds[x][y][z] = Led{
-					X: float32(x),
-					Y: float32(y),
-					Z: float32(z),
-					R: 0.0,
-					G: 0.0,
-					B: 0.0,
-				}
+type Cube struct {
+	leds [][][]led
+}
+
+var ErrWindowShouldClose = errors.New("window should close")
+
+func InitCube(width, height, depth int) *Cube {
+	// we only want to lock the os thread if we are mocking
+	runtime.LockOSThread()
+	window = initializeGLFW()
+
+	window.SetCursorPosCallback(mouseCallback)
+	window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
+
+	program = initializeOpenGL()
+	_, cameraUniform, modelUniform = configureShaders(program)
+	configureVertexData(program)
+	configureGlobalSettings()
+
+	ledColorUniform = gl.GetUniformLocation(program, gl.Str("ledColor\x00"))
+	if ledColorUniform == -1 {
+		log.Fatalln("failed to get uniform location for ledColor")
+	}
+	sphereVertices = generateSphereVertices(1.0, 30, 30)
+	angle = 0.0
+	previousTime = 0.0
+	deltaTime = 0.0
+
+	leds := createLeds(width, height, depth)
+	return &Cube{leds}
+}
+
+func (c *Cube) SetLeds(f frames.Frame) {
+	newLeds := f.ToXYZ()
+	for x := range len(newLeds) {
+		for y := range len(newLeds[x]) {
+			for z := range len(newLeds[x][y]) {
+				led := &c.leds[x][y][z]
+				led.R = float32(newLeds[x][y][z] >> 16 & 0xFF)
+				led.G = float32(newLeds[x][y][z] >> 8 & 0xFF)
+				led.B = float32(newLeds[x][y][z] & 0xFF)
 			}
 		}
 	}
-	return leds
 }
 
-func render(window *glfw.Window, program uint32, cameraUniform, modelUniform, ledColorUniform int32, leds [][][]Led, sphereVertices []float32, ledUpdates chan [][][]Led) {
-	angle := 0.0
-	previousTime := glfw.GetTime()
-
-	for !window.ShouldClose() {
+func (c *Cube) Render() error {
+	if !window.ShouldClose() {
 		gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 		time := glfw.GetTime()
-		deltaTime = float32(time - previousTime)
+		if previousTime != 0.0 {
+			deltaTime = float32(time - previousTime)
+		}
 		previousTime = time
 
 		angle += float64(deltaTime)
@@ -70,16 +104,10 @@ func render(window *glfw.Window, program uint32, cameraUniform, modelUniform, le
 
 		gl.UseProgram(program)
 
-		select {
-		case newLeds := <-ledUpdates:
-			leds = newLeds
-		default:
-		}
-
-		for x := 0; x < cubeWidth; x++ {
-			for y := 0; y < cubeWidth; y++ {
-				for z := 0; z < cubeWidth; z++ {
-					led := leds[x][y][z]
+		for x := range len(c.leds) {
+			for y := range len(c.leds[x]) {
+				for z := range len(c.leds[x][y]) {
+					led := c.leds[x][y][z]
 
 					color := mgl32.Vec3{led.R, led.G, led.B}
 
@@ -95,29 +123,34 @@ func render(window *glfw.Window, program uint32, cameraUniform, modelUniform, le
 
 		window.SwapBuffers()
 		glfw.PollEvents()
+		return nil
 	}
+	return ErrWindowShouldClose
 }
 
-func Setup(ledUpdates chan [][][]Led) {
-	window := initializeGLFW()
-	defer glfw.Terminate()
+func (c *Cube) Fini() {
+	glfw.Terminate()
+}
 
-	window.SetCursorPosCallback(mouseCallback)
-	window.SetInputMode(glfw.CursorMode, glfw.CursorDisabled)
-
-	program := initializeOpenGL()
-	_, cameraUniform, modelUniform := configureShaders(program)
-	configureVertexData(program)
-	configureGlobalSettings()
-
-	leds := createLeds(cubeWidth)
-	ledColorUniform := gl.GetUniformLocation(program, gl.Str("ledColor\x00"))
-	if ledColorUniform == -1 {
-		log.Fatalln("failed to get uniform location for ledColor")
+func createLeds(width, height, depth int) [][][]led {
+	leds := make([][][]led, width)
+	for x := 0; x < width; x++ {
+		leds[x] = make([][]led, height)
+		for y := 0; y < height; y++ {
+			leds[x][y] = make([]led, depth)
+			for z := 0; z < depth; z++ {
+				leds[x][y][z] = led{
+					X: float32(x),
+					Y: float32(y),
+					Z: float32(z),
+					R: 0.0,
+					G: 0.0,
+					B: 0.0,
+				}
+			}
+		}
 	}
-	sphereVertices := generateSphereVertices(1.0, 30, 30)
-
-	render(window, program, cameraUniform, modelUniform, ledColorUniform, leds, sphereVertices, ledUpdates)
+	return leds
 }
 
 func generateSphereVertices(radius float32, latitudeBands int, longitudeBands int) []float32 {
