@@ -22,7 +22,7 @@ class Animator(ABC):
         return False
 
 
-class SampleAnimator(Animator):
+class RGBMovingRight(Animator):
     def internal_setup(self) -> None:
         self.current_x_index = 0
 
@@ -31,12 +31,11 @@ class SampleAnimator(Animator):
 
     def update_function(self, leds) -> npt.NDArray:
         for x in range(leds.shape[0]):
+            color = [1 if x == self.current_x_index else 0, 1 if x - 1 ==
+                     self.current_x_index else 0, 1 if x - 2 == self.current_x_index else 0]
             for y in range(leds.shape[1]):
                 for z in range(leds.shape[2]):
-                    if x == self.current_x_index:
-                        leds[x][y][z] = [1, 1, 1]
-                    else:
-                        leds[x][y][z] = [0, 0, 0]
+                    leds[x][y][z] = color
 
         self.current_x_index += 1
 

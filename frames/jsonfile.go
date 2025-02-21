@@ -22,7 +22,6 @@ func (f frame) ToXYZ() [][][]uint32 {
 // which needs to be a json in the format [frame][x][y][z]uint32 and uint32 represents an rgb color created like so: 0xRRGGBB
 func NewJSONFileAnimation(input io.ReadCloser) (*jsonFileAnimation, <-chan error) {
 	ec := make(chan error, 1)
-	defer input.Close()
 	dec := json.NewDecoder(input)
 
 	t, err := dec.Token()
@@ -38,7 +37,10 @@ func NewJSONFileAnimation(input io.ReadCloser) (*jsonFileAnimation, <-chan error
 
 	jfa := &jsonFileAnimation{frames: make([]frame, 0), frameChan: make(chan frame, 32)}
 	go func(fc chan<- frame, frames *[]frame) {
-		defer close(fc)
+		defer func() {
+			close(fc)
+			input.Close()
+		}()
 		for dec.More() {
 			var f frame
 			if err := dec.Decode(&f); err != nil {

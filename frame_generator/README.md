@@ -1,6 +1,6 @@
-# generator
+# Frame generator
 
-I made this mostly for myself, to generate some cool animations for mock. We will see later if it's any useful
+Useful for creating animations
 
 ## usage
 
@@ -10,8 +10,14 @@ cd to root folder of this repo and
 python -m frame_generator
 ```
 
-## json format
+## Data format
 
 ### Prototype
 
-We need to agree on a JSON format, I will change state_parser later to generate correct JSONs
+json in the format:
+
+```text
+[frame][x][y][z]uint32
+```
+
+and uint32 represents an rgb color created like so: 0xRRGGBB

@@ -1,10 +1,12 @@
 import numpy as np
 import numpy.typing as npt
-from frame_generator.state_parser import StateParser, PrototypeJsonifier
+from frame_generator.state_parser import StateParser
 from frame_generator.animator import *
 from frame_generator.parsed_handler import Saver
+from typing import Tuple
 
 COLOR_CHANNELS_LENGTH = 3
+ANIMATION_DIRECTORY = ""
 
 
 class LedCube:
@@ -30,12 +32,12 @@ class LedCube:
     def should_stop(self, stop_function) -> bool:
         return stop_function(self.leds, self.frame)
 
-    def parse(self) -> str:
-        return self.state_parser.parse(self.leds)
+    def parse(self) -> None:
+        self.state_parser.handle_frame(self.leds)
 
 
-def generate_frames(width, height, depth, state_parser: StateParser, animator: Animator, saver: Saver) -> None:
-    led_cube = LedCube(width, height, depth, state_parser)
+def generate_frames(dimensions: Tuple[int, int, int], state_parser: StateParser, animator: Animator, saver: Saver) -> None:
+    led_cube = LedCube(*dimensions, state_parser)
 
     led_cube.start(animator.start_function)
 
@@ -45,14 +47,15 @@ def generate_frames(width, height, depth, state_parser: StateParser, animator: A
         if animator.stop_function is None:
             return True
 
-        print(frame)
         return not led_cube.should_stop(animator.stop_function)
 
     while is_running():
-        results: str = led_cube.parse()
-
-        saver.save(results, frame, "sample", "generated_animations")
+        led_cube.parse()
+        print(f"Generated frame {frame}")
 
         led_cube.update(animator.update_function)
         led_cube.update_frame(frame)
         frame += 1
+
+    saver.save(state_parser.get_parsed_results(),
+               state_parser.extension, ANIMATION_DIRECTORY)
