@@ -1,3 +1,5 @@
+//go:build !arm64 || !linux
+
 package mock
 
 import (
@@ -130,6 +132,7 @@ func (c *Cube) Render() error {
 
 func (c *Cube) Fini() {
 	glfw.Terminate()
+	runtime.UnlockOSThread()
 }
 
 func createLeds(width, height, depth int) [][][]led {
