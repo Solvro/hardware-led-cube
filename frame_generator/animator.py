@@ -48,12 +48,11 @@ class RGBMovingRight(Animator):
 
 
 class TwoFacedSolvro(Animator):
-    DISPLAY_PLANE = 4
-
     def internal_setup(self, cube_width: int) -> None:
         img: ImageFile = Image.open('frame_generator/solvro8x8x8.png')
 
-        self.data = TwoFacedSolvro.get_formatted_image_data(img)
+        self.data: list[list[float]
+                        ] = TwoFacedSolvro.get_formatted_image_data(img)
         self.counter = 0
 
     @staticmethod
@@ -70,14 +69,16 @@ class TwoFacedSolvro(Animator):
         self.counter += 1
         is_even_frame = self.counter % 2 == 0
 
+        plane_index = leds.shape[0] // 2
+
         for x in range(leds.shape[0]):
             for y in range(leds.shape[1]):
                 for z in range(leds.shape[2]):
                     leds[x][y][z] = [0, 0, 0]
 
-                    if is_even_frame and z == self.DISPLAY_PLANE:
+                    if is_even_frame and z == plane_index:
                         leds[x][y][z] = self.data[x + y * leds.shape[0]]
-                    elif not is_even_frame and x == self.DISPLAY_PLANE:
+                    elif not is_even_frame and x == plane_index:
                         leds[x][y][z] = self.data[z + y * leds.shape[0]]
 
         return leds
