@@ -17,7 +17,12 @@ var (
 )
 
 func processInput(window *glfw.Window) {
-	var cameraSpeed float32 = 2.5 * deltaTime
+	var cameraSpeed float32 = 5 * deltaTime
+
+	if window.GetKey(glfw.KeyLeftControl) == glfw.Press {
+		cameraSpeed *= 3
+	}
+
 	if window.GetKey(glfw.KeyW) == glfw.Press {
 		cameraPos = cameraPos.Add(cameraFront.Mul(cameraSpeed))
 	}
