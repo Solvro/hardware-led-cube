@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	WIDTH           = 4
-	HEIGHT          = 4
-	DEPTH           = 4
+	WIDTH           = 8
+	HEIGHT          = 8
+	DEPTH           = 8
 	LED_COUNT_HALF  = WIDTH * HEIGHT * DEPTH / 2
 	BOTTOM          = 0
 	TOP             = 1
