@@ -1,3 +1,5 @@
+//go:build !arm64 || !linux
+
 package mock
 
 import (
