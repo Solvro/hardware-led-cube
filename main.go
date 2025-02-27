@@ -22,7 +22,7 @@ const (
 	GPIO_PIN_BOTTOM = 18
 	GPIO_PIN_TOP    = 19
 	BRIGHTNESS      = 64
-	FRAMERATE       = 60
+	FRAMERATE       = 4
 	FREQ            = 800_000
 )
 
