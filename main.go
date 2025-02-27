@@ -13,16 +13,16 @@ import (
 )
 
 const (
-	WIDTH           = 4
-	HEIGHT          = 4
-	DEPTH           = 4
+	WIDTH           = 8
+	HEIGHT          = 8
+	DEPTH           = 8
 	LED_COUNT_HALF  = WIDTH * HEIGHT * DEPTH / 2
 	BOTTOM          = 0
 	TOP             = 1
 	GPIO_PIN_BOTTOM = 18
 	GPIO_PIN_TOP    = 19
 	BRIGHTNESS      = 64
-	FRAMERATE       = 4
+	FRAMERATE       = 60
 	FREQ            = 800_000
 )
 
