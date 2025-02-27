@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from PIL.ImageFile import ImageFile
 import numpy.typing as npt
 from PIL import Image
 
@@ -46,40 +47,40 @@ class RGBMovingRight(Animator):
         return frames == leds.shape[0] - 1
 
 
-class StaticSolvro(Animator):
+class TwoFacedSolvro(Animator):
+    DISPLAY_PLANE = 4
+
     def internal_setup(self, cube_width: int) -> None:
-        img = Image.open('frame_generator/solvro.png')
-        img = img.convert("RGBA")
+        img: ImageFile = Image.open('frame_generator/solvro8x8x8.png')
 
-        img = img.resize((cube_width, cube_width))
-        data = img.getdata()
-
-        # Replace transparent pixels (alpha == 0) with black
-        processed_data = [
-            (0, 0, 0) if color[3] == 0 else color[:3]
-            for color in data
-        ]
-
-        img.show()
-
-        self.data = processed_data
+        self.data = TwoFacedSolvro.get_formatted_image_data(img)
         self.counter = 0
+
+    @staticmethod
+    def get_formatted_image_data(img) -> list[list[float]]:
+        data = list(img.getdata())
+        data.reverse()
+        data = [[c/255 for c in color[:3]] for color in data]
+        return data
 
     def start_function(self, leds):
         return self.update_function(leds)
 
     def update_function(self, leds):
         self.counter += 1
+        is_even_frame = self.counter % 2 == 0
 
         for x in range(leds.shape[0]):
             for y in range(leds.shape[1]):
                 for z in range(leds.shape[2]):
-                    leds[x][y][z] = self.data[x + y]
+                    leds[x][y][z] = [0, 0, 0]
 
-        if self.counter % 2 == 0:
-            return leds
+                    if is_even_frame and z == self.DISPLAY_PLANE:
+                        leds[x][y][z] = self.data[x + y * leds.shape[0]]
+                    elif not is_even_frame and x == self.DISPLAY_PLANE:
+                        leds[x][y][z] = self.data[z + y * leds.shape[0]]
 
         return leds
 
     def stop_function(self, leds, frames):
-        return frames > 0
+        return self.counter > 0

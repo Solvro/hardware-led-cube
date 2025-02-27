@@ -8,7 +8,7 @@ ANIMATION_NAME = "animation"
 if __name__ == "__main__":
     width = 8
     state_parser = PrototypeJsonifier()
-    sample_animator = StaticSolvro(width)
+    sample_animator = TwoFacedSolvro(width)
     saver = Saver(ANIMATION_NAME)
     generate_frames((width, width, width), state_parser,
                     sample_animator, saver)
