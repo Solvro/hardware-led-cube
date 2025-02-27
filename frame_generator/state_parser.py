@@ -51,6 +51,17 @@ class PrototypeJsonifier(StateParser):
         return "json"
 
 
+class PrototypeJsonifierWithBuffer(PrototypeJsonifier):
+    def __init__(self, frame_buffer: int) -> None:
+        super().__init__()
+        self.frame_buffer: int = frame_buffer
+
+    def handle_frame(self, leds: npt.NDArray) -> None:
+        super().handle_frame(leds)
+        for i in range(self.frame_buffer):
+            self.previous_states.append(self.previous_states[-1])
+
+
 if __name__ == "__main__":
     x = rgb_to_color(255, 0, 0)
     print(x)
