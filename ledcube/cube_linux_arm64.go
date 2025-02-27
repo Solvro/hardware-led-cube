@@ -3,6 +3,7 @@ package ledcube
 import (
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 	"hardware-led-cube/frames"
+	"log"
 )
 
 const (
@@ -69,6 +70,6 @@ func formatFrame(frame [][][]uint32) (bottom, top [LED_COUNT_HALF]uint32) {
 }
 
 // Recoverable determines if an error returned by one of the cube's methods is Recoverable
-func recoverable(err error) bool {
+func Recoverable(err error) bool {
 	return true
 }
