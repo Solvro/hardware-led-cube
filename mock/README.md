@@ -7,6 +7,7 @@ Uses the same channel for communicating led changes as real cube and renders a v
 - w, s: front and back
 - s, d: left and right
 - space, left shift: up and down
+- left control: speed up
 
 ## Running
 

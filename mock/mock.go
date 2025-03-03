@@ -78,9 +78,9 @@ func (c *Cube) SetLeds(f frames.Frame) {
 		for y := range len(newLeds[x]) {
 			for z := range len(newLeds[x][y]) {
 				led := &c.leds[x][y][z]
-				led.R = float32(newLeds[x][y][z] >> 16 & 0xFF)
-				led.G = float32(newLeds[x][y][z] >> 8 & 0xFF)
-				led.B = float32(newLeds[x][y][z] & 0xFF)
+				led.R = float32(newLeds[x][y][z]>>16&0xFF) / 255.0
+				led.G = float32(newLeds[x][y][z]>>8&0xFF) / 255.0
+				led.B = float32(newLeds[x][y][z]&0xFF) / 255.0
 			}
 		}
 	}
