@@ -32,7 +32,6 @@ func (c *LedCube) SetLeds(f frames.Frame) error {
 		go func() {
 			defer close(ec)
 			ec <- (*ws2811.WS2811)(c).SetLedsSync(ch, leds)
-			close(ec)
 		}()
 		return ec
 	}
