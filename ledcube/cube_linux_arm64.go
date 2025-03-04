@@ -1,6 +1,7 @@
 package ledcube
 
 import (
+	"errors"
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 	"hardware-led-cube/frames"
 )
@@ -30,6 +31,7 @@ func (c *LedCube) SetLeds(f frames.Frame) error {
 		ec = make(chan error, 1)
 		go func() {
 			ec <- (*ws2811.WS2811)(c).SetLedsSync(ch, leds)
+			close(ec)
 		}()
 		return ec
 	}
