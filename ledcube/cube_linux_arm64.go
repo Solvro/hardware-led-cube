@@ -30,6 +30,7 @@ func (c *LedCube) SetLeds(f frames.Frame) error {
 	set := func(ch int, leds [LED_COUNT_HALF]uint32) (ec <-chan error) {
 		ec = make(chan error, 1)
 		go func() {
+			defer close(ec)
 			ec <- (*ws2811.WS2811)(c).SetLedsSync(ch, leds)
 			close(ec)
 		}()
