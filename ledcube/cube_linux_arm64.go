@@ -3,7 +3,6 @@ package ledcube
 import (
 	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 	"hardware-led-cube/frames"
-	"log"
 )
 
 const (
@@ -25,16 +24,20 @@ func (c *LedCube) Render() error {
 	return (*ws2811.WS2811)(c).Render()
 }
 
-func (c *LedCube) SetLeds(f frames.Frame) {
+func (c *LedCube) SetLeds(f frames.Frame) error {
 	bottom, top := formatFrame(f.ToXYZ())
-	go func() {
-		if err := (*ws2811.WS2811)(c).SetLedsSync(BOTTOM, bottom); err != nil {
-			log.Panic(err)
-		}
-	}()
-	if err := (*ws2811.WS2811)(c).SetLedsSync(TOP, top); err != nil {
-		log.Panic(err)
+	set := func(ch int, leds [LED_COUNT_HALF]uint32) (ec <-chan error) {
+		ec = make(chan error, 1)
+		go func() {
+			ec <- (*ws2811.WS2811)(c).SetLedsSync(ch, leds)
+		}()
+		return ec
 	}
+	// We need to assign the channels here instead of reading from them directly in the errors.Join call,
+	// because otherwise it would block the execution of the second call until the first one writes to the channel
+	ecBottom := set(BOTTOM, bottom)
+	ecTop := set(TOP, top)
+	return errors.Join(<-ecBottom, <-ecTop)
 }
 
 func (c *LedCube) Fini() {
@@ -71,5 +74,6 @@ func formatFrame(frame [][][]uint32) (bottom, top [LED_COUNT_HALF]uint32) {
 
 // Recoverable determines if an error returned by one of the cube's methods is Recoverable
 func Recoverable(err error) bool {
-	return true
+	// TODO: implement this
+	return false
 }
