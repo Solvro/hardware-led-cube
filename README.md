@@ -12,26 +12,28 @@ This repository contains code for configuring hardware, developing drivers, and 
 
 ## Usage
 
+### Dependencies
+
+- To build the mock binary,
+ensure that you fulfill the requirements for the
+[go-gl](https://github.com/go-gl/gl) package.
+
+- To build the binary for the raspberry pi,
+ensure to fulfill the requirements described [here](https://github.com/rpi-ws281x/rpi-ws281x-go?tab=readme-ov-file#installing).
+
 ### Building
 
 ```bash
 go build
 ```
 
+- This produces an executable file named `hardware-led-cube`.
+If the project was not compiled on arm64 linux (RPi), executing the binary will open up a window with a mock cube.
+ 
+- Compiling on arm64 linux produces a binary that will use the RPi-ws281x library to control physical LEDs.
+
 ### Running
 
 ```bash
 ./hardware-led-cube
-```
-
-#### Running the mock
-
-```bash
-./hardware-led-cube --mock
-```
-
-##### Help
-
-```bash
-./hardware-led-cube --help
 ```
