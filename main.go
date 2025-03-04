@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-const FRAMERATE = 4
+const FRAMERATE = 60
 
 type Cube interface {
 	Render() error
-	SetLeds(f frames.Frame)
+	SetLeds(f frames.Frame) error
 	Fini()
 }
 

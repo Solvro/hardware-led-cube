@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	WIDTH  = 4
-	HEIGHT = 4
-	DEPTH  = 4
+	WIDTH  = 8
+	HEIGHT = 8
+	DEPTH  = 8
 )
 
 func InitCube() *mock.Cube {
@@ -19,5 +19,5 @@ func InitCube() *mock.Cube {
 
 // Recoverable determines if an error returned by one of the cube's methods is Recoverable
 func Recoverable(err error) bool {
-	return !errors.Is(err, mock.ErrWindowShouldClose)
+	return !errors.Is(err, mock.ErrWindowShouldClose) && !errors.Is(err, mock.ErrFrameSizeMismatch)
 }
