@@ -17,6 +17,7 @@ cd ..
 git clone --branch main --single-branch https://github.com/Solvro/hardware-led-cube.git ~/src
 cd ~/src
 go build
+# TODO: turn off the audio device that conflicts with pwm
 
 # Create systemd service file
 cat <<EOT > /etc/systemd/system/hardware-led-cube.service
