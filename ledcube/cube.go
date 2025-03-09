@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	WIDTH  = 8
-	HEIGHT = 8
-	DEPTH  = 8
+	WIDTH  = 4
+	HEIGHT = 4
+	DEPTH  = 4
 )
 
 func InitCube() *mock.Cube {
