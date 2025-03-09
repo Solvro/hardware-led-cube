@@ -1,3 +1,5 @@
+//go:build !arm64 || !linux
+
 package mock
 
 import (
@@ -43,6 +45,7 @@ type Cube struct {
 }
 
 var ErrWindowShouldClose = errors.New("window should close")
+var ErrFrameSizeMismatch = errors.New("frame size doesn't match cube size")
 
 func InitCube(width, height, depth int) *Cube {
 	// we only want to lock the os thread if we are mocking
@@ -70,10 +73,19 @@ func InitCube(width, height, depth int) *Cube {
 	return &Cube{leds}
 }
 
-func (c *Cube) SetLeds(f frames.Frame) {
+func (c *Cube) SetLeds(f frames.Frame) error {
 	newLeds := f.ToXYZ()
+	if len(newLeds) != len(c.leds) {
+		return ErrFrameSizeMismatch
+	}
 	for x := range len(newLeds) {
+		if len(newLeds[x]) != len(c.leds[x]) {
+			return ErrFrameSizeMismatch
+		}
 		for y := range len(newLeds[x]) {
+			if len(newLeds[x][y]) != len(c.leds[x][y]) {
+				return ErrFrameSizeMismatch
+			}
 			for z := range len(newLeds[x][y]) {
 				led := &c.leds[x][y][z]
 				led.R = float32(newLeds[x][y][z]>>16&0xFF) / 255.0
@@ -82,6 +94,7 @@ func (c *Cube) SetLeds(f frames.Frame) {
 			}
 		}
 	}
+	return nil
 }
 
 func (c *Cube) Render() error {
@@ -130,6 +143,7 @@ func (c *Cube) Render() error {
 
 func (c *Cube) Fini() {
 	glfw.Terminate()
+	runtime.UnlockOSThread()
 }
 
 func createLeds(width, height, depth int) [][][]led {
