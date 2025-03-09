@@ -37,4 +37,4 @@ Makefile
 
 .vscode/launch.json
 
-animation.json
+# animation.json
