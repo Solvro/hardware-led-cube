@@ -17,7 +17,8 @@ cd ..
 git clone --branch main --single-branch https://github.com/Solvro/hardware-led-cube.git ~/src
 cd ~/src
 go build
-# TODO: turn off the audio device that conflicts with pwm
+# blacklist the broadcom audio kernel to prevent conflicts with the led control
+echo "blacklist snd_bcm2835" > etc/modprobe.d/snd-blacklist.conf
 
 # Create systemd service file
 cat <<EOT > /etc/systemd/system/hardware-led-cube.service
