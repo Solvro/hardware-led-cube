@@ -26,6 +26,7 @@ func (c *LedCube) Render() error {
 func (c *LedCube) SetLeds(f frames.Frame) error {
 	leds_fixed := formatFrame(f.ToXYZ())
 	leds := make([]uint32, len(leds_fixed))
+	copy(leds, leds_fixed[:])
 	return (*ws2811.WS2811)(c).SetLedsSync(CHANNEL, leds)
 }
 
@@ -53,6 +54,7 @@ func InitCube() *LedCube {
 }
 
 func formatFrame(frame [][][]uint32) [LED_COUNT]uint32 {
+	// TODO: implement this
 	var leds [LED_COUNT]uint32
 	return leds
 }
