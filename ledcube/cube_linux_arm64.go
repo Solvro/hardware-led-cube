@@ -1,22 +1,20 @@
 package ledcube
 
 import (
-	"errors"
-	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 	"hardware-led-cube/frames"
+
+	ws2811 "github.com/rpi-ws281x/rpi-ws281x-go"
 )
 
 const (
-	WIDTH           = 8
-	HEIGHT          = 8
-	DEPTH           = 8
-	LED_COUNT_HALF  = WIDTH * HEIGHT * DEPTH / 2
-	BOTTOM          = 0
-	TOP             = 1
-	GPIO_PIN_BOTTOM = 18
-	GPIO_PIN_TOP    = 19
-	BRIGHTNESS      = 64
-	FREQ            = 800_000
+	WIDTH      = 4
+	HEIGHT     = 4
+	DEPTH      = 4
+	LED_COUNT  = WIDTH * HEIGHT * DEPTH
+	CHANNEL    = 0
+	GPIO_PIN   = 18
+	BRIGHTNESS = 64
+	FREQ       = 800_000
 )
 
 type LedCube ws2811.WS2811
@@ -26,20 +24,9 @@ func (c *LedCube) Render() error {
 }
 
 func (c *LedCube) SetLeds(f frames.Frame) error {
-	bottom, top := formatFrame(f.ToXYZ())
-	set := func(ch int, leds [LED_COUNT_HALF]uint32) (ec <-chan error) {
-		ec = make(chan error, 1)
-		go func() {
-			defer close(ec)
-			ec <- (*ws2811.WS2811)(c).SetLedsSync(ch, leds)
-		}()
-		return ec
-	}
-	// We need to assign the channels here instead of reading from them directly in the errors.Join call,
-	// because otherwise it would block the execution of the second call until the first one writes to the channel
-	ecBottom := set(BOTTOM, bottom)
-	ecTop := set(TOP, top)
-	return errors.Join(<-ecBottom, <-ecTop)
+	leds_fixed := formatFrame(f.ToXYZ())
+	leds := make([]uint32, len(leds_fixed))
+	return (*ws2811.WS2811)(c).SetLedsSync(CHANNEL, leds)
 }
 
 func (c *LedCube) Fini() {
@@ -48,12 +35,9 @@ func (c *LedCube) Fini() {
 
 func InitCube() *LedCube {
 	opt := ws2811.DefaultOptions
-	opt.Channels[BOTTOM].GpioPin = GPIO_PIN_BOTTOM
-	opt.Channels[TOP].GpioPin = GPIO_PIN_TOP
-	opt.Channels[BOTTOM].LedCount = LED_COUNT_HALF
-	opt.Channels[TOP].LedCount = LED_COUNT_HALF
-	opt.Channels[BOTTOM].Brightness = BRIGHTNESS
-	opt.Channels[TOP].Brightness = BRIGHTNESS
+	opt.Channels[CHANNEL].GpioPin = GPIO_PIN
+	opt.Channels[CHANNEL].LedCount = LED_COUNT
+	opt.Channels[CHANNEL].Brightness = BRIGHTNESS
 	opt.Frequency = FREQ
 
 	cube, err := ws2811.MakeWS2811(&opt)
@@ -68,10 +52,9 @@ func InitCube() *LedCube {
 	return (*LedCube)(cube)
 }
 
-func formatFrame(frame [][][]uint32) (bottom, top [LED_COUNT_HALF]uint32) {
-	// Format the frame to match the LED layout
-	// TODO: actual implementation
-	return bottom, top
+func formatFrame(frame [][][]uint32) [LED_COUNT]uint32 {
+	var leds [LED_COUNT]uint32
+	return leds
 }
 
 // Recoverable determines if an error returned by one of the cube's methods is Recoverable
